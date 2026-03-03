@@ -297,8 +297,6 @@ window.addResult = async function(){
 
 async function loadResults(){
   let snapshot = await getDocs(collection(db,"results"));
-  let list = document.getElementById("resultsList");
-  list.innerHTML="";
   let data = [];
   snapshot.forEach(doc=>{
     let r = doc.data(); r.id=doc.id;
