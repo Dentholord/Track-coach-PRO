@@ -238,17 +238,24 @@ async function loadAllCoach(){
 
 async function loadAthletes(){
   let snapshot = await getDocs(collection(db,"athletes"));
+  
+  // убрали list, оставили только селекты
   let s1 = document.getElementById("resultAthlete");
   let s2 = document.getElementById("chartAthlete");
   let s3 = document.getElementById("athleteLogin");
-  list.innerHTML=""; s1.innerHTML=""; s2.innerHTML=""; s3.innerHTML="";
+  
+  s1.innerHTML = "";
+  s2.innerHTML = "";
+  s3.innerHTML = "";
+  
   snapshot.forEach(doc=>{
     let d = doc.data();
-    s1.innerHTML+=`<option>${d.name}</option>`;
-    s2.innerHTML+=`<option>${d.name}</option>`;
-    s3.innerHTML+=`<option value="${d.name}">${d.name} [${d.group}]</option>`;
+    s1.innerHTML += `<option>${d.name}</option>`;
+    s2.innerHTML += `<option>${d.name}</option>`;
+    s3.innerHTML += `<option value="${d.name}">${d.name} [${d.group}]</option>`;
   });
 }
+
 
 // --- Колонки по группам ---
 async function loadAthleteColumns(){
