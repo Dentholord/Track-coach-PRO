@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Coach PRO</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#000;color:white;}
+header{background:#111;color:white;padding:15px;text-align:center;font-size:22px;}
+nav{display:flex;flex-wrap:wrap;background:#111;}
+nav button{flex:1 1 25%;padding:12px;background:#111;color:white;border:none;cursor:pointer;font-size:14px;}
+nav button:hover{background:#333;}
+.section{display:none;padding:20px;}
+.active{display:block;}
+.hidden{display:none;}
+.card{background:#1e1e1e;padding:15px;margin:10px 0;border-radius:10px;}
+input, select, textarea{width:100%;padding:8px;margin:5px 0;border-radius:6px;border:1px solid #555;background:#333;color:white;resize:none;}
+textarea{overflow:hidden;}
+button{padding:8px 12px;margin-top:5px;background:white;color:black;border:none;border-radius:6px;cursor:pointer;}
+button:hover{background:#ccc;}
+canvas{background:#1e1e1e;border-radius:10px;padding:10px;max-width:100%;}
+ul{padding-left:20px;}
+li{margin:5px 0;}
+hr{border-color:#555;}
+#athleteColumns{
+  display:flex;
+  flex-wrap:wrap;
+  gap:20px;
+  margin-top:20px;
+}
+#athleteColumns > div{
+  flex:1 1 200px;
+  background:#1e1e1e;
+  padding:10px;
+  border-radius:10px;
+  margin-bottom:10px;
+}
+@media(max-width:600px){
+  #athleteColumns > div{flex:1 1 100%;}
+}
+</style>
+</head>
+<body>
+
+<div id="loginBox" class="section active" style="max-width:320px;margin:20px auto;">
+  <h2>Вход тренера</h2>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Пароль">
+  <button onclick="loginCoach()">Войти</button>
+  <hr>
+  <h2>Вход спортсмена</h2>
+  <select id="athleteLogin"></select>
+  <button onclick="loginAthlete()">Войти</button>
+</div>
+
+<div id="appCoach" class="hidden">
+<header>Track Coach PRO – Тренер</header>
+<nav>
+<button onclick="show('athletes')">Спортсмены</button>
+<button onclick="show('results')">Результаты</button>
+<button onclick="show('chart')">График</button>
+<button onclick="show('plans')">Планы</button>
+</nav>
+
+<div id="athletes" class="section active">
+<div class="card">
+<h3>Добавить группу</h3>
+<input id="groupName" placeholder="Название группы">
+<button onclick="addGroup()">Добавить группу</button>
+</div>
+<div class="card">
+<h3>Добавить спортсмена</h3>
+<input id="athleteName" placeholder="Имя">
+<select id="athleteGender"><option value="М">Мужской</option><option value="Ж">Женский</option></select>
+<select id="athleteGroup"></select>
+<button onclick="addAthlete()">Добавить</button>
+</div>
+
+<ul id="athleteList"></ul>
+<div id="athleteColumns"></div>
+</div>
+
+<div id="results" class="section">
+<div class="card">
+<h3>Добавить результат</h3>
+<select id="resultAthlete"></select>
+<input id="resultDistance" placeholder="Дистанция (м)">
+<input id="resultValue" placeholder="Время (сек)">
+<input type="date" id="resultDate">
+<button onclick="addResult()">Добавить</button>
+</div>
+<div id="resultsList"></div>
+</div>
+
+<div id="chart" class="section">
+<div class="card">
+<h3>График результатов</h3>
+<select id="chartAthlete"></select>
+<input id="chartDistance" placeholder="Фильтр по дистанции (м)">
+<button onclick="loadChart()">Отобразить график</button>
+<canvas id="performanceChart"></canvas>
+</div>
+</div>
+
+<div id="plans" class="section">
+<div class="card">
+<h3>Добавить план для группы</h3>
+<select id="planGroup"></select>
+<input type="date" id="planDate">
+<select id="planType"><option value="Беговая">Беговая</option><option value="ОФП">ОФП</option></select>
+<textarea id="planText" placeholder="План..." oninput="autoResize(this)"></textarea>
+<button onclick="addPlan()">Добавить</button>
+</div>
+<div id="planList" class="card" style="min-height:50px">Нет данных</div>
+</div>
+</div>
+
+<div id="appAthlete" class="hidden">
+<header>Track Coach PRO – Спортсмен</header>
+<nav>
+<button onclick="show('plansAthlete')">Планы</button>
+<button onclick="show('resultsAthlete')">Результаты</button>
+</nav>
+
+<div id="plansAthlete" class="section active">
+<div id="planListAthlete" class="card" style="min-height:50px">Нет данных</div>
+</div>
+
+<div id="resultsAthlete" class="section">
+<div id="resultsListAthlete"></div>
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKN570ofn-S7CuJN129nR0Prcg7-KfNTI",
+  authDomain: "track-coach-pro-c6e79.firebaseapp.com",
+  projectId: "track-coach-pro-c6e79",
+  storageBucket: "track-coach-pro-c6e79.firebasestorage.app",
+  messagingSenderId: "115486307122",
+  appId: "1:115486307122:web:fa2980b8ffaa7f948d5d2b"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let coachChart;
+let currentAthlete = null;
+let isCoach = false;
+
+// --- Авторизация ---
+window.loginCoach = async function(){
+  try{
+    const emailValue = document.getElementById("email").value;
+    const passwordValue = document.getElementById("password").value;
+    await signInWithEmailAndPassword(auth, emailValue, passwordValue);
+    isCoach = true;
+    document.getElementById("loginBox").classList.add("hidden");
+    document.getElementById("appCoach").classList.remove("hidden");
+    await loadAllCoach();
+  } catch(e){alert("Ошибка входа: "+e.message);}
+}
+
+window.loginAthlete = function(){
+  currentAthlete = document.getElementById("athleteLogin").value.split(" [")[0];
+  isCoach = false;
+  document.getElementById("loginBox").classList.add("hidden");
+  document.getElementById("appAthlete").classList.remove("hidden");
+  loadAllAthlete();
+}
+
+// --- Вкладки ---
+window.show = function(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// --- Числовой ввод ---
+function onlyNumbers(input, allowDot=false){
+  input.addEventListener("input", function(){
+    let regex = allowDot ? /[^0-9.]/g : /[^0-9]/g;
+    this.value = this.value.replace(regex,"");
+  });
+}
+onlyNumbers(document.getElementById("resultDistance"));
+onlyNumbers(document.getElementById("resultValue"), true);
+onlyNumbers(document.getElementById("chartDistance"));
+
+// --- Авто рост textarea ---
+function autoResize(textarea){textarea.style.height='auto';textarea.style.height=textarea.scrollHeight+'px';}
+
+// --- Группы ---
+window.addGroup = async function(){
+  let groupName = document.getElementById("groupName").value;
+  if(!groupName) return alert("Введите название группы");
+  await addDoc(collection(db,"groups"),{name:groupName});
+  document.getElementById("groupName").value="";
+  await populateGroupSelects();
+}
+
+async function populateGroupSelects(){
+  let snapshot = await getDocs(collection(db,"groups"));
+  let athleteGroup = document.getElementById("athleteGroup");
+  let planGroup = document.getElementById("planGroup");
+  athleteGroup.innerHTML="";
+  planGroup.innerHTML="";
+  snapshot.forEach(doc=>{
+    let g = doc.data();
+    athleteGroup.innerHTML+=`<option value="${g.name}">${g.name}</option>`;
+    planGroup.innerHTML+=`<option value="${g.name}">${g.name}</option>`;
+  });
+}
+
+// --- Спортсмены ---
+window.addAthlete = async function(){
+  if(!isCoach) return alert("Только тренер может добавлять спортсменов");
+  let name = document.getElementById("athleteName").value;
+  let gender = document.getElementById("athleteGender").value;
+  let group = document.getElementById("athleteGroup").value;
+  if(!name||!group) return alert("Введите имя и группу");
+  await addDoc(collection(db,"athletes"),{name,gender,group,createdAt:new Date()});
+  document.getElementById("athleteName").value="";
+  await loadAllCoach();
+}
+
+async function loadAllCoach(){
+  await loadAthletes();
+  await loadAthleteColumns();
+  await loadResults();
+  await loadPlans();
+  await populateGroupSelects();
+}
+
+async function loadAthletes(){
+  let snapshot = await getDocs(collection(db,"athletes"));
+  let list = document.getElementById("athleteList");
+  let s1 = document.getElementById("resultAthlete");
+  let s2 = document.getElementById("chartAthlete");
+  let s3 = document.getElementById("athleteLogin");
+  list.innerHTML=""; s1.innerHTML=""; s2.innerHTML=""; s3.innerHTML="";
+  snapshot.forEach(doc=>{
+    let d = doc.data();
+    list.innerHTML+=`<li>${d.name} (${d.gender}) [${d.group}]</li>`;
+    s1.innerHTML+=`<option>${d.name}</option>`;
+    s2.innerHTML+=`<option>${d.name}</option>`;
+    s3.innerHTML+=`<option value="${d.name}">${d.name} [${d.group}]</option>`;
+  });
+}
+
+// --- Колонки по группам ---
+async function loadAthleteColumns(){
+  let snapshot = await getDocs(collection(db,"athletes"));
+  let container = document.getElementById("athleteColumns");
+  container.innerHTML="";
+  let groups = {};
+  snapshot.forEach(doc=>{
+    let d = doc.data();
+    if(!groups[d.group]) groups[d.group]=[];
+    groups[d.group].push(d);
+  });
+  for(let groupName in groups){
+    let div = document.createElement("div");
+    let html = `<b>${groupName}</b><ul style="padding-left:20px;margin-top:5px;">`;
+    groups[groupName].forEach(a=>{
+      html+=`<li>${a.name} (${a.gender})</li>`;
+    });
+    html+=`</ul>`;
+    div.innerHTML=html;
+    container.appendChild(div);
+  }
+}
+
+// --- Результаты ---
+window.addResult = async function(){
+  if(!isCoach) return alert("Только тренер может добавлять результаты");
+  let athlete = document.getElementById("resultAthlete").value;
+  let distance = document.getElementById("resultDistance").value;
+  let value = document.getElementById("resultValue").value;
+  let date = document.getElementById("resultDate").value;
+  if(!athlete||!distance||!value||!date) return alert("Заполните все поля");
+  await addDoc(collection(db,"results"),{athlete,distance:Number(distance),value:Number(value),date,timeStamp:new Date()});
+  document.getElementById("resultDistance").value="";
+  document.getElementById("resultValue").value="";
+  document.getElementById("resultDate").value="";
+  await loadResults();
+}
+
+async function loadResults(){
+  let snapshot = await getDocs(collection(db,"results"));
+  let list = document.getElementById("resultsList");
+  list.innerHTML="";
+  let data = [];
+  snapshot.forEach(doc=>{
+    let r = doc.data(); r.id=doc.id;
+    if(!isCoach && r.athlete!==currentAthlete) return;
+    data.push(r);
+  });
+  data.sort((a,b)=>a.date.localeCompare(b.date)||((a.timeStamp?.seconds||0)-(b.timeStamp?.seconds||0)));
+  let grouped={};
+  data.forEach(r=>{if(!grouped[r.date]) grouped[r.date]=[]; grouped[r.date].push(r);});
+  for(let date in grouped){
+    let div = document.createElement("div");
+    div.className="card";
+    div.style.marginBottom="10px";
+    div.innerHTML=`<b>${date}</b><ul>` + grouped[date].map(r=>{
+      let same=grouped[date].filter(x=>x.distance===r.distance);
+      let series=same.indexOf(r)+1;
+      let delBtn=isCoach?` <button onclick="deleteResult('${r.id}')">Удалить</button>`:'';
+      return `<li>${r.athlete} | ${r.distance}м | ${r.value}сек (серия ${series}) ${delBtn}</li>`;
+    }).join('')+`</ul>`;
+    list.appendChild(div);
+  }
+}
+
+window.deleteResult = async function(id){
+  if(!confirm("Удалить этот результат?")) return;
+  await deleteDoc(doc(db,"results",id));
+  loadResults();
+}
+
+// --- Планы ---
+window.addPlan = async function(){
+  if(!isCoach) return alert("Только тренер может добавлять планы");
+  let group=document.getElementById("planGroup").value;
+  let date=document.getElementById("planDate").value;
+  let type=document.getElementById("planType").value;
+  let plan=document.getElementById("planText").value;
+  if(!group||!date||!type||!plan) return alert("Заполните все поля");
+  await addDoc(collection(db,"plans"),{group,date,type,plan,timeStamp:new Date()});
+  document.getElementById("planText").value="";
+  await loadPlans();
+}
+
+async function loadPlans(){
+  let snapshot = await getDocs(collection(db,"plans"));
+  let container = document.getElementById("planList");
+  container.innerHTML="";
+  let hasData=false;
+  snapshot.forEach(doc=>{
+    let p = doc.data(); hasData=true;
+    let div = document.createElement("div"); div.className="card"; div.style.margin="5px 0";
+    let delBtn=isCoach?`<br><button onclick="deletePlan('${doc.id}')">Удалить план</button>`:'';
+    div.innerHTML=`<b>Дата:</b> ${p.date}<br><b>Группа:</b> ${p.group}<br><b>Тип:</b> ${p.type}<br><b>План:</b><br>${p.plan.split("\n").join("<br>")}${delBtn}`;
+    container.appendChild(div);
+  });
+  if(!hasData) container.innerHTML="Нет данных";
+}
+
+window.deletePlan = async function(id){
+  if(!confirm("Удалить этот план?")) return;
+  await deleteDoc(doc(db,"plans",id));
+  loadPlans();
+}
+
+// --- График ---
+window.loadChart = async function(){
+  let athlete = document.getElementById("chartAthlete").value;
+  let distance = document.getElementById("chartDistance").value;
+  if(!athlete||!distance) return alert("Выберите спортсмена и дистанцию");
+  const q=query(collection(db,"results"),where("athlete","==",athlete));
+  const snapshot=await getDocs(q);
+  let data=[];
+  snapshot.forEach(doc=>{
+    let r=doc.data();
+    if(r.distance.toString()===distance) data.push({...r,id:doc.id});
+  });
+  if(data.length===0) return alert("Нет данных");
+  data.sort((a,b)=>(a.timeStamp?.seconds||0)-(b.timeStamp?.seconds||0));
+  const labels=[], values=[];
+  data.forEach(r=>{labels.push(r.date); values.push(r.value);});
+  if(coachChart) coachChart.destroy();
+  const ctx=document.getElementById("performanceChart").getContext("2d");
+  coachChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:"Время (сек)",data:values,borderColor:'#ffffff',pointBackgroundColor:'#ffffff',fill:false,tension:0.2}]},
+    options:{scales:{y:{reverse:true,title:{display:true,text:"Время (сек)"}}}}
+  });
+}
+
+// --- Спортсмен ---
+async function loadAllAthlete(){await loadPlansAthlete(); await loadResultsAthlete();}
+
+async function loadPlansAthlete(){
+  let snapshot=await getDocs(collection(db,"plans"));
+  let container=document.getElementById("planListAthlete");
+  let group=await getAthleteGroup(currentAthlete);
+  container.innerHTML="";
+  let hasData=false;
+  snapshot.forEach(doc=>{
+    let p=doc.data();
+    if(p.group!==group) return;
+    hasData=true;
+    let div=document.createElement("div");
+    div.className="card";
+    div.style.margin="5px 0";
+    div.innerHTML=`<b>Дата:</b> ${p.date}<br><b>Тип:</b> ${p.type}<br><b>План:</b><br>${p.plan.split("\n").join("<br>")}`;
+    container.appendChild(div);
+  });
+  if(!hasData) container.innerHTML="Нет данных";
+}
+
+async function getAthleteGroup(name){
+  let snapshot=await getDocs(query(collection(db,"athletes"),where("name","==",name)));
+  let group=null;
+  snapshot.forEach(doc=>{group=doc.data().group;});
+  return group;
+}
+
+async function loadResultsAthlete(){
+  let snapshot=await getDocs(collection(db,"results"));
+  let list=document.getElementById("resultsListAthlete");
+  list.innerHTML="";
+  let data=[];
+  snapshot.forEach(doc=>{
+    let r=doc.data();
+    if(r.athlete!==currentAthlete) return;
+    data.push(r);
+  });
+  data.sort((a,b)=>a.date.localeCompare(b.date));
+  data.forEach(r=>{
+    let div=document.createElement("div");
+    div.className="card"; div.style.marginBottom="5px";
+    div.innerHTML=`<b>${r.date}</b> | ${r.distance}м | ${r.value}сек`;
+    list.appendChild(div);
+  });
+}
+
+// --- Новый блок: подгрузка спортсменов для входа ---
+async function loadAthleteLogin(){
+  const athleteSelect = document.getElementById("athleteLogin");
+  athleteSelect.innerHTML = "";
+  const snapshot = await getDocs(collection(db, "athletes"));
+  snapshot.forEach(doc => {
+    const d = doc.data();
+    athleteSelect.innerHTML += `<option value="${d.name}">${d.name} [${d.group}]</option>`;
+  });
+}
+
+// Вызываем при старте страницы
+window.addEventListener('DOMContentLoaded', loadAthleteLogin);
+
+// --- АВТОВХОД ТРЕНЕРА ---
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    // пользователь уже авторизован на этом устройстве
+    isCoach = true;
+    document.getElementById("loginBox").classList.add("hidden");
+    document.getElementById("appCoach").classList.remove("hidden");
+    await loadAllCoach();
+  }
+});
+</script>
+</body>
+</html>
