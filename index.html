@@ -305,17 +305,25 @@ async function loadResults(){
   let grouped={};
   data.forEach(r=>{if(!grouped[r.date]) grouped[r.date]=[]; grouped[r.date].push(r);});
   for(let date in grouped){
-    let div = document.createElement("div");
-    div.className="card";
-    div.style.marginBottom="10px";
-    div.innerHTML=`<b>${date}</b><ul>` + grouped[date].map(r=>{
-      let same=grouped[date].filter(x=>x.distance===r.distance);
-      let series=same.indexOf(r)+1;
-      let delBtn=isCoach?` <button onclick="deleteResult('${r.id}')">Удалить</button>`:'';
-      return `<li>${r.athlete} | ${r.distance}м | ${r.value}сек (серия ${series}) ${delBtn}</li>`;
-    }).join('')+`</ul>`;
-    list.appendChild(div);
-  }
+  let div = document.createElement("div");
+  div.className="card";
+  div.style.marginBottom="10px";
+  let seriesCounter = {};
+  let html = `<b>${date}</b><ul>`;
+  grouped[date].forEach(r=>{
+    let key = r.athlete + "_" + r.distance;
+    if(!seriesCounter[key]) seriesCounter[key] = 1;
+    else seriesCounter[key]++;
+    let series = seriesCounter[key];
+    let delBtn = isCoach ? ` <button onclick="deleteResult('${r.id}')">Удалить</button>` : '';
+    html += `<li>${r.athlete} | ${r.distance}м | ${r.value}сек (серия ${series}) ${delBtn}</li>`;
+  });
+
+  html += `</ul>`;
+  div.innerHTML = html;
+
+  list.appendChild(div);
+}
 }
 
 window.deleteResult = async function(id){
@@ -458,3 +466,4 @@ onAuthStateChanged(auth, async (user) => {
 </script>
 </body>
 </html>
+
