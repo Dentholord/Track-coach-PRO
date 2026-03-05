@@ -349,14 +349,45 @@ async function loadPlans(){
   let snapshot = await getDocs(collection(db,"plans"));
   let container = document.getElementById("planList");
   container.innerHTML="";
-  let hasData=false;
+
+  let plansByDate = {};
+  let hasData = false;
+
   snapshot.forEach(doc=>{
-    let p = doc.data(); hasData=true;
-    let div = document.createElement("div"); div.className="card"; div.style.margin="5px 0";
-    let delBtn=isCoach?`<br><button onclick="deletePlan('${doc.id}')">Удалить план</button>`:'';
-    div.innerHTML=`<b>Дата:</b> ${p.date}<br><b>Группа:</b> ${p.group}<br><b>Тип:</b> ${p.type}<br><b>План:</b><br>${p.plan.split("\n").join("<br>")}${delBtn}`;
-    container.appendChild(div);
+    let p = doc.data();
+    hasData = true;
+
+    if(!plansByDate[p.date]) plansByDate[p.date] = [];
+    plansByDate[p.date].push({...p,id:doc.id});
   });
+
+  let dates = Object.keys(plansByDate).sort();
+
+  dates.forEach(date=>{
+    let block = document.createElement("div");
+    block.className = "card";
+    block.style.marginBottom = "15px";
+
+    let html = `<h3>${date}</h3>`;
+
+    plansByDate[date].forEach(p=>{
+      let delBtn = isCoach ? `<br><button onclick="deletePlan('${p.id}')">Удалить</button>` : '';
+
+      html += `
+      <div style="border-top:1px solid #555;margin-top:5px;padding-top:5px;">
+      <b>Группа:</b> ${p.group}<br>
+      <b>Тип:</b> ${p.type}<br>
+      <b>План:</b><br>
+      ${p.plan.split("\n").join("<br>")}
+      ${delBtn}
+      </div>
+      `;
+    });
+
+    block.innerHTML = html;
+    container.appendChild(block);
+  });
+
   if(!hasData) container.innerHTML="Нет данных";
 }
 
