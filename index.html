@@ -350,31 +350,44 @@ async function loadPlans(){
   let container = document.getElementById("planList");
   container.innerHTML="";
 
-  let plansByDate = {};
-  let hasData = false;
+  let today = new Date().toISOString().split("T")[0];
+
+  let todayPlans = [];
+  let futurePlans = [];
+  let archivePlans = [];
 
   snapshot.forEach(doc=>{
     let p = doc.data();
-    hasData = true;
+    p.id = doc.id;
 
-    if(!plansByDate[p.date]) plansByDate[p.date] = [];
-    plansByDate[p.date].push({...p,id:doc.id});
+    if(p.date === today){
+      todayPlans.push(p);
+    }
+    else if(p.date > today){
+      futurePlans.push(p);
+    }
+    else{
+      archivePlans.push(p);
+    }
   });
 
-  let dates = Object.keys(plansByDate).sort();
+  function createBlock(title, plans){
+    if(plans.length === 0) return;
 
-  dates.forEach(date=>{
     let block = document.createElement("div");
-    block.className = "card";
-    block.style.marginBottom = "15px";
+    block.className="card";
+    block.style.marginBottom="15px";
 
-    let html = `<h3>${date}</h3>`;
+    let html = `<h3>${title}</h3>`;
 
-    plansByDate[date].forEach(p=>{
+    plans.sort((a,b)=>a.date.localeCompare(b.date));
+
+    plans.forEach(p=>{
       let delBtn = isCoach ? `<br><button onclick="deletePlan('${p.id}')">Удалить</button>` : '';
 
       html += `
-      <div style="border-top:1px solid #555;margin-top:5px;padding-top:5px;">
+      <div style="border-top:1px solid #555;margin-top:8px;padding-top:8px;">
+      <b>Дата:</b> ${p.date}<br>
       <b>Группа:</b> ${p.group}<br>
       <b>Тип:</b> ${p.type}<br>
       <b>План:</b><br>
@@ -386,9 +399,15 @@ async function loadPlans(){
 
     block.innerHTML = html;
     container.appendChild(block);
-  });
+  }
 
-  if(!hasData) container.innerHTML="Нет данных";
+  createBlock("Сегодня", todayPlans);
+  createBlock("Будущие планы", futurePlans);
+  createBlock("Архив", archivePlans);
+
+  if(todayPlans.length + futurePlans.length + archivePlans.length === 0){
+    container.innerHTML="Нет данных";
+  }
 }
 
 window.deletePlan = async function(id){
@@ -426,22 +445,67 @@ window.loadChart = async function(){
 async function loadAllAthlete(){await loadPlansAthlete(); await loadResultsAthlete();}
 
 async function loadPlansAthlete(){
-  let snapshot=await getDocs(collection(db,"plans"));
-  let container=document.getElementById("planListAthlete");
-  let group=await getAthleteGroup(currentAthlete);
+
+  let snapshot = await getDocs(collection(db,"plans"));
+  let container = document.getElementById("planListAthlete");
+  let group = await getAthleteGroup(currentAthlete);
+
   container.innerHTML="";
-  let hasData=false;
+
+  let today = new Date().toISOString().split("T")[0];
+
+  let todayPlans = [];
+  let futurePlans = [];
+  let archivePlans = [];
+
   snapshot.forEach(doc=>{
-    let p=doc.data();
-    if(p.group!==group) return;
-    hasData=true;
-    let div=document.createElement("div");
-    div.className="card";
-    div.style.margin="5px 0";
-    div.innerHTML=`<b>Дата:</b> ${p.date}<br><b>Тип:</b> ${p.type}<br><b>План:</b><br>${p.plan.split("\n").join("<br>")}`;
-    container.appendChild(div);
+    let p = doc.data();
+    if(p.group !== group) return;
+
+    if(p.date === today){
+      todayPlans.push(p);
+    }
+    else if(p.date > today){
+      futurePlans.push(p);
+    }
+    else{
+      archivePlans.push(p);
+    }
   });
-  if(!hasData) container.innerHTML="Нет данных";
+
+  function createBlock(title, plans){
+    if(plans.length === 0) return;
+
+    let block = document.createElement("div");
+    block.className = "card";
+    block.style.marginBottom="15px";
+
+    let html = `<h3>${title}</h3>`;
+
+    plans.sort((a,b)=>a.date.localeCompare(b.date));
+
+    plans.forEach(p=>{
+      html += `
+      <div style="border-top:1px solid #555;margin-top:8px;padding-top:8px;">
+      <b>Дата:</b> ${p.date}<br>
+      <b>Тип:</b> ${p.type}<br>
+      <b>План:</b><br>
+      ${p.plan.split("\n").join("<br>")}
+      </div>
+      `;
+    });
+
+    block.innerHTML = html;
+    container.appendChild(block);
+  }
+
+  createBlock("Сегодня", todayPlans);
+  createBlock("Будущие планы", futurePlans);
+  createBlock("Архив", archivePlans);
+
+  if(todayPlans.length + futurePlans.length + archivePlans.length === 0){
+    container.innerHTML="Нет данных";
+  }
 }
 
 async function getAthleteGroup(name){
