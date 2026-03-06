@@ -136,7 +136,6 @@ hr{border-color:#555;}
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
@@ -437,10 +436,10 @@ window.loadChart = async function(){
   data.forEach(r=>{labels.push(r.date); values.push(r.value);});
   if(coachChart) coachChart.destroy();
   const ctx=document.getElementById("performanceChart").getContext("2d");
-  coachChart=new Chart(ctx,{
-    type:'line',
-    data:{labels,datasets:[{label:"Время (сек)",data:values,borderColor:'#ffffff',pointBackgroundColor:'#ffffff',fill:false,tension:0.2}]},
-    options:{scales:{y:{reverse:true,title:{display:true,text:"Время (сек)"}}}}
+  coachChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label: "Время (сек)", data: values, borderColor: '#ffffff', pointBackgroundColor: '#ffffff', fill: false, tension: 0.2 }] },
+    options: { scales: { y: { reverse: true, title: { display: true, text: "Время (сек)" } } } }
   });
 }
 
@@ -564,4 +563,5 @@ onAuthStateChanged(auth, async (user) => {
 </script>
 </body>
 </html>
+
 
