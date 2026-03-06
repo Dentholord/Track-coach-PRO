@@ -423,24 +423,56 @@ window.deletePlan = async function(id){
 window.loadChart = async function(){
   let athlete = document.getElementById("chartAthlete").value;
   let distance = document.getElementById("chartDistance").value;
-  if(!athlete||!distance) return alert("Выберите спортсмена и дистанцию");
-  const q=query(collection(db,"results"),where("athlete","==",athlete));
-  const snapshot=await getDocs(q);
-  let data=[];
+
+  if(!athlete || !distance) return alert("Выберите спортсмена и дистанцию");
+
+  const q = query(collection(db,"results"), where("athlete","==",athlete));
+  const snapshot = await getDocs(q);
+
+  let data = [];
+
   snapshot.forEach(doc=>{
-    let r=doc.data();
-    if(r.distance.toString()===distance) data.push({...r,id:doc.id});
+    let r = doc.data();
+    if(r.distance == Number(distance)) data.push(r);
   });
+
   if(data.length===0) return alert("Нет данных");
+
   data.sort((a,b)=>(a.timeStamp?.seconds||0)-(b.timeStamp?.seconds||0));
-  const labels=[], values=[];
-  data.forEach(r=>{labels.push(r.date); values.push(r.value);});
+
+  const labels = [];
+  const values = [];
+
+  data.forEach(r=>{
+    labels.push(r.date);
+    values.push(r.value);
+  });
+
   if(coachChart) coachChart.destroy();
-  const ctx=document.getElementById("performanceChart").getContext("2d");
-  coachChart=new Chart(ctx,{
+
+  const canvas = document.getElementById("performanceChart");
+
+  coachChart = new Chart(canvas,{
     type:'line',
-    data:{labels,datasets:[{label:"Время (сек)",data:values,borderColor:'#ffffff',pointBackgroundColor:'#ffffff',fill:false,tension:0.2}]},
-    options:{scales:{y:{reverse:true,title:{display:true,text:"Время (сек)"}}}}
+    data:{
+      labels,
+      datasets:[{
+        label:"Время (сек)",
+        data:values,
+        borderColor:'#ffffff',
+        pointBackgroundColor:'#ffffff',
+        fill:false,
+        tension:0.2
+      }]
+    },
+    options:{
+      scales:{
+        y:{
+          reverse:true,
+          title:{display:true,text:"Время (сек)"}
+        }
+      }
+    }
   });
 }
 
